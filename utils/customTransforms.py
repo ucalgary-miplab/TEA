@@ -5,13 +5,10 @@ class ToFloatUKBB:
     """Convert ndarrays in sample values to integers."""
 
     def __call__(self, image):
-        try:
-            image = image.astype('f8')
-            maxv = np.max(image)
-            minv = np.min(image)
-            return ((image - minv) / maxv).astype('f4')
-        except:
-            return image
+        image = image.astype('f8')
+        maxv = np.max(image)
+        minv = np.min(image)
+        return ((image - minv) / maxv).astype('f4')
 
 
 class MeanSub:

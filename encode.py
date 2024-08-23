@@ -106,7 +106,7 @@ def view_reconstruction(exps):
 
 
 def data_as_list(csv_path, img_path, exps, g):
-    t = Compose([ToTensor(), CenterCrop(exps.crop_size), ToFloatUKBB()])
+    t = Compose([ToFloatUKBB(), ToTensor(), CenterCrop(exps.crop_size)])
 
     ds = SimBADataset(csv_path, img_path, exps.exp_name == 'no_bias', transform=t)
     dloader = DataLoader(ds, batch_size=exps.batch_size, shuffle=True, num_workers=2,
