@@ -3,24 +3,19 @@ import pickle
 import sys
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
-
-project_path = '/data/Code/CounterBias'
-sys.path.append(str(project_path) + '/')
-
-from experiments import setup_experiments
-from utils.helpers import seed_all, seed_worker
-from dimRed import DimRed
-from utils.datasets import SimBADataset
 from monai.data import pad_list_data_collate, DataLoader
-
 from monai.transforms import Compose, ToTensor
 from torchvision.transforms import CenterCrop
-from utils.customTransforms import ToFloatUKBB
-import utils.visualize as vis
 
-import matplotlib.pyplot as plt
+import utils.visualize as vis
+from dimRed import DimRed
+from experiments import setup_experiments
+from utils.customTransforms import ToFloatUKBB
+from utils.datasets import SimBADataset
+from utils.helpers import seed_all, seed_worker
 
 
 def main(exp_name):
@@ -32,6 +27,8 @@ def main(exp_name):
 
     if not os.path.exists(data_path):
         save_data(exps, g)
+    else:
+        print('Data path already exists. Delete the directory to run PCA.')
 
     if exps.debug:
         view_reconstruction(exps)
