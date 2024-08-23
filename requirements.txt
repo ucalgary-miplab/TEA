@@ -1,0 +1,8 @@
+numpy
+tiffile
+torch
+torchvision
+scikit-learn
+pandas
+monai
+matplotlib
