@@ -10,12 +10,11 @@ import numpy as np
 import torch
 import torch.optim as optim
 from torch.distributions import Laplace, Normal
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 from tqdm.auto import tqdm
 
 sys.path.append(os.getcwd())
 from .flows import Flow, NormalizingFlowModel
-from utils.datasets import CustomDataset
 
 
 class MACAW:
@@ -39,13 +38,13 @@ class MACAW:
 
     def __init__(self, config):
         self.c = config
-        self.n_layers = config.flow.nl
-        self.hidden = config.flow.hm
-        self.epochs = config.training.epochs
-        self.batch_size = config.training.batch_size
+        self.n_layers = config.flow['nl']
+        self.hidden = config.flow['hm']
+        self.epochs = config.training['epochs']
+        self.batch_size = config.training['batch_size']
         self.device = config.device
-        self.patience = config.training.patience
-        self.min_delta = config.training.min_delta
+        self.patience = config.training['patience']
+        self.min_delta = config.training['min_delta']
 
         self.dim = None
         self.model = None
@@ -114,7 +113,7 @@ class MACAW:
 
         return loss_vals
 
-    def fit_with_priors(self, train_ds, val_ds, edges, priors, e):
+    def fit_with_priors(self, train_ds, val_ds, edges, priors, writer=None):
         """
         Assuming data columns follow the causal ordering, we fit the associated 1D-Equations.
 
@@ -134,10 +133,11 @@ class MACAW:
         flow_list = [Flow(self.dim + self.pdim, edges, self.device, hm=self.hidden) for _ in range(self.n_layers)]
         self.model = NormalizingFlowModel(priors, flow_list).to(self.device)
 
-        optimizer = optim.Adam(self.model.parameters(), lr=self.c.optim.lr, weight_decay=self.c.optim.weight_decay,
-                               betas=(self.c.optim.beta1, 0.999), amsgrad=self.c.optim.amsgrad)
+        optimizer = optim.Adam(self.model.parameters(), lr=self.c.optim['lr'],
+                               weight_decay=self.c.optim['weight_decay'],
+                               betas=(self.c.optim['beta1'], 0.999), amsgrad=self.c.optim['amsgrad'])
 
-        if self.c.optim.scheduler:
+        if self.c.optim['scheduler']:
             scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, patience=3)
         else:
             scheduler = None
@@ -146,7 +146,7 @@ class MACAW:
         best_val_loss = float('inf')
         epochs_no_improve = 0
 
-        last_lr=999
+        last_lr = 999
 
         loss_vals_train = []
         loss_vals_val = []
@@ -163,15 +163,15 @@ class MACAW:
                 loss = - torch.sum(prior_logprob + log_det)
                 train_loss += loss.item()
 
-                if (loss.item()>9999):
-                    print(loss,prior_logprob,log_det)
+                if (loss.item() > 9999):
+                    print(loss, prior_logprob, log_det)
 
                 # optimize
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
 
-            if self.c.optim.scheduler:
+            if self.c.optim['scheduler']:
                 scheduler.step(train_loss)
 
             self.model.eval()
@@ -200,6 +200,9 @@ class MACAW:
                 f'Epoch {e + 1}/{self.epochs} - Training Loss: {train_loss:.3f}, Val Loss: {val_loss:.3f}, LR: {curr_lr:.6f}')
             loss_vals_train.append(train_loss)
             loss_vals_val.append(val_loss)
+
+            if not writer is None:
+                writer.add_scalars(f"losses", {"train": train_loss, "val": val_loss}, e)
 
             # Check for early stopping
             if val_loss < best_val_loss - self.min_delta:
@@ -323,3 +326,26 @@ class MACAW:
             raise ValueError('Model needs to be fitted first')
         return self.model.backward(torch.tensor(latent.astype(np.float32)).to(self.device))[0][
             -1].detach().cpu().numpy()
+
+
+class CustomDataset(Dataset):
+    def __init__(self, X, device='cpu'):
+        self.device = device
+        self.x = torch.from_numpy(X).to(device)
+        self.len = self.x.shape[0]
+        self.data_dim = self.x.shape[1]
+
+    def get_dims(self):
+        return self.data_dim
+
+    def __len__(self):
+        return self.len
+
+    def __getitem__(self, index):
+        return self.x[index]
+
+    def get_metadata(self):
+        return {
+            'n': self.len,
+            'data_dim': self.data_dim,
+        }

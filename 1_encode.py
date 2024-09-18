@@ -26,7 +26,7 @@ def main(exp_name):
     data_path = Path(exps.path) / 'data'
 
     if not os.path.exists(data_path):
-        save_data(exps, g)
+        encode_data(exps, g)
     else:
         print('Data path already exists. Delete the directory to run PCA.')
 
@@ -34,7 +34,7 @@ def main(exp_name):
         view_reconstruction(exps)
 
 
-def save_data(exps, g):
+def encode_data(exps, g):
     exp_path = Path(exps.path)
 
     train_csv_path = exp_path / 'csv' / 'train.csv'
