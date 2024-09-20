@@ -50,14 +50,13 @@ class SFCNModel(nn.Module):
         self.avgpool1 = nn.AvgPool2d(kernel_size=1)
         self.dropout1 = nn.Dropout(.5)
         self.flat1 = nn.Flatten()
-        self.linear1 = nn.Linear(1600, 2)
+        self.linear1 = nn.Linear(1920, 1)
 
         self.sigmoid = nn.Sigmoid()
 
         self.block7 = nn.Sequential(self.avgpool1, self.dropout1, self.flat1, self.linear1)
 
     def forward(self, x):
-        #        print(x.shape)
         x = self.block1(x)
         x = self.block2(x)
         x = self.block3(x)
@@ -65,8 +64,5 @@ class SFCNModel(nn.Module):
         x = self.block5(x)
         x = self.block6(x)
         x = self.block7(x)
-
         x = self.sigmoid(x)
-
-        # return torch.squeeze(x) causes error with saliency maps
         return x

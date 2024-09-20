@@ -1,4 +1,5 @@
 # CounterBias
+
 Counterfactual Evaluation With SimBA
 
 # Installation Instructions
@@ -13,24 +14,34 @@ Counterfactual Evaluation With SimBA
    conda activate counterbias
    
    pip install -r requirements.txt
-   
+
 ## Data directory
 
 The directory should have the following structure:
+
   ```
    Experiment_name (e.g., far_bias)
-  ├── csv
-  ├── images
-  │   ├── train
-  │   ├── test
-  │   └── val
-  ├── data (for PCA-encoded)
+  ├── data
+  |   |- csv
+  |   |   |- train.csv
+  |   |   |- test.csv
+  |   |   |- val.csv
+  |   |- pca
+  |   |- images
+  │      ├── train
+  │      ├── test
+  │      └── val
   ├── cfs
   └── models
+         |- MACAW
+         |- SFCN
+         |- HVAE
+         
   ```
-  
+
 ## Run
- 
-**After creating these directories, try running the following command to verify if the encoding process works:**
+
+**After creating these directories, try running the following command to verify:**
+
 ```bash
-python encode.py moin_bias
+./run.sh far_bias

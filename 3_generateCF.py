@@ -70,6 +70,7 @@ def generate_cf(exps):
     images = np.clip(images, 0, 1)
 
     for i, name in tqdm(zip(images, img_names)):
+        name = name.replace('nii.gz', 'tiff')
         tiff.imwrite(save_path / f'{name}', i)
 
 

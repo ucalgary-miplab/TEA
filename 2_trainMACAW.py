@@ -31,6 +31,9 @@ def train_macaw(exps, g):
     data_path = Path(exps.path) / 'data' / 'pca'
     model_path = Path(exps.path) / 'models' / f'{exps.dim_red}_{exps.n_comps}' / f'{exps.n_evecs}'
 
+    if not os.path.exists(model_path):
+        os.makedirs(model_path)
+
     train_path = data_path / f'train_{exps.dim_red}_{exps.n_comps}.pkl'
     val_path = data_path / f'val_{exps.dim_red}_{exps.n_comps}.pkl'
 
