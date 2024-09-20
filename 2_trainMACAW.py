@@ -3,13 +3,11 @@ import pickle
 import sys
 from pathlib import Path
 
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.distributions as td
 from torch.utils.tensorboard import SummaryWriter
 
-import utils.visualize as vis
 from experiments import setup_experiments
 from macaw import MACAW
 from utils.helpers import seed_all
@@ -20,30 +18,18 @@ def main(exp_name):
     exps = setup_experiments(exp_name)
     g = seed_all(seed=seed, deterministic=True)
 
-    data_path = Path(exps.path) / 'data'
+    data_path = Path(exps.path) / 'data' / 'pca'
     pca_path = data_path / f'train_{exps.dim_red}_{exps.n_comps}.pkl'
 
     if not os.path.exists(pca_path):
-        print('Encoding path does not exist. Please run the encoding script first.')
-
-    if exps.debug:
-        view_reconstruction(exps)
+        raise RuntimeError('Encoding does not exist. Please run the encoding script first.')
 
     train_macaw(exps, g)
 
 
 def train_macaw(exps, g):
-    data_path = Path(exps.path) / 'data'
+    data_path = Path(exps.path) / 'data' / 'pca'
     model_path = Path(exps.path) / 'models' / f'{exps.dim_red}_{exps.n_comps}' / f'{exps.n_evecs}'
-
-    if not os.path.exists(model_path):
-        os.makedirs(model_path)
-    else:
-        user_input = input('Model path already exists. Existing models will be overwritten. Continue? [Yes/no]')
-        if user_input.lower() == "yes":
-            print("Continuing...")
-        else:
-            print("Exiting...")
 
     train_path = data_path / f'train_{exps.dim_red}_{exps.n_comps}.pkl'
     val_path = data_path / f'val_{exps.dim_red}_{exps.n_comps}.pkl'
@@ -104,31 +90,6 @@ def train_macaw(exps, g):
 
     with open(model_path, 'wb') as f:
         pickle.dump({'exps': exps}, f)
-
-
-def view_reconstruction(exps):
-    data_path = Path(exps.path) / 'data' / f'val_{exps.dim_red}_{exps.n_comps}.pkl'
-
-    with open(data_path, 'rb') as f:
-        data = pickle.load(f)
-
-    imgs = data['imgs']
-    pca = data['pca']
-    disease = data['disease']
-    bias = data['bias']
-
-    sample_imgs = imgs[:5, :]
-    t = pca.transform(sample_imgs)
-    X_recon = pca.inverse_transform(t)
-    crop_size = exps.crop_size
-
-    plt.rcParams["figure.figsize"] = 10, 10
-    diff = sample_imgs - X_recon
-    fig = vis.img_grid(
-        [d.reshape(crop_size, crop_size) for d in sample_imgs] + [d.reshape(crop_size, crop_size) for d in X_recon],
-        clim=(0, 1), rows=2, cols=5, titles=[f'Disease:{d}, Bias:{b}' for d, b in zip(disease, bias)])
-    fig = vis.img_grid([d.reshape(crop_size, crop_size) for d in diff], clim=(-.5, .5), cols=5, cmap='seismic')
-    plt.show()
 
 
 if __name__ == '__main__':

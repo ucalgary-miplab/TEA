@@ -8,12 +8,10 @@ import numpy as np
 import torch
 from monai.data import pad_list_data_collate, DataLoader
 from monai.transforms import Compose, ToTensor
-from torchvision.transforms import CenterCrop
 
 import utils.visualize as vis
 from dimRed import DimRed
 from experiments import setup_experiments
-from utils.customTransforms import ToFloatUKBB
 from utils.datasets import SimBADataset
 from utils.helpers import seed_all, seed_worker
 
@@ -23,12 +21,7 @@ def main(exp_name):
     exps = setup_experiments(exp_name)
     g = seed_all(seed=seed, deterministic=True)
 
-    data_path = Path(exps.path) / 'data'
-
-    if not os.path.exists(data_path):
-        encode_data(exps, g)
-    else:
-        print('Data path already exists. Delete the directory to run PCA.')
+    encode_data(exps, g)
 
     if exps.debug:
         view_reconstruction(exps)
@@ -36,17 +29,19 @@ def main(exp_name):
 
 def encode_data(exps, g):
     exp_path = Path(exps.path)
-
-    train_csv_path = exp_path / 'csv' / 'train.csv'
-    val_csv_path = exp_path / 'csv' / 'val.csv'
-    test_csv_path = exp_path / 'csv' / 'test.csv'
-
-    train_img_path = exp_path / 'images' / 'train'
-    val_img_path = exp_path / 'images' / 'val'
-    test_img_path = exp_path / 'images' / 'test'
-
     data_path = exp_path / 'data'
-    os.mkdir(data_path)
+    pca_path = exp_path / 'data' / 'pca'
+
+    train_csv_path = data_path / 'csv' / 'train.csv'
+    val_csv_path = data_path / 'csv' / 'val.csv'
+    test_csv_path = data_path / 'csv' / 'test.csv'
+
+    train_img_path = data_path / 'images' / 'train'
+    val_img_path = data_path / 'images' / 'val'
+    test_img_path = data_path / 'images' / 'test'
+
+    if not os.path.exists(pca_path):
+        os.mkdir(pca_path)
 
     print('Loading training data...')
     imgs, disease, bias, img_names = data_as_list(train_csv_path, train_img_path, exps, g)
@@ -57,7 +52,7 @@ def encode_data(exps, g):
     encoded_data = pca.transform(imgs)
 
     print('Saving encoded training data...')
-    with open(data_path / f'train_{exps.dim_red}_{exps.n_comps}.pkl', 'wb') as f:
+    with open(pca_path / f'train_{exps.dim_red}_{exps.n_comps}.pkl', 'wb') as f:
         pickle.dump({'imgs': imgs, 'disease': disease, 'bias': bias, 'pca': pca, 'encoded_data': encoded_data,
                      'img_names': img_names}, f)
 
@@ -66,7 +61,7 @@ def encode_data(exps, g):
     encoded_data = pca.transform(imgs)
 
     print('Saving encoded validation data...')
-    with open(data_path / f'val_{exps.dim_red}_{exps.n_comps}.pkl', 'wb') as f:
+    with open(pca_path / f'val_{exps.dim_red}_{exps.n_comps}.pkl', 'wb') as f:
         pickle.dump({'imgs': imgs, 'disease': disease, 'bias': bias, 'pca': pca, 'encoded_data': encoded_data,
                      'img_names': img_names}, f)
 
@@ -75,13 +70,13 @@ def encode_data(exps, g):
     encoded_data = pca.transform(imgs)
 
     print('Saving encoded test data...')
-    with open(data_path / f'test_{exps.dim_red}_{exps.n_comps}.pkl', 'wb') as f:
+    with open(pca_path / f'test_{exps.dim_red}_{exps.n_comps}.pkl', 'wb') as f:
         pickle.dump({'imgs': imgs, 'disease': disease, 'bias': bias, 'pca': pca, 'encoded_data': encoded_data,
                      'img_names': img_names}, f)
 
 
 def view_reconstruction(exps):
-    data_path = Path(exps.path) / 'data' / f'val_{exps.dim_red}_{exps.n_comps}.pkl'
+    data_path = Path(exps.path) / 'data' / 'pca' / f'val_{exps.dim_red}_{exps.n_comps}.pkl'
 
     with open(data_path, 'rb') as f:
         data = pickle.load(f)
@@ -94,19 +89,18 @@ def view_reconstruction(exps):
     sample_imgs = imgs[:5, :]
     t = pca.transform(sample_imgs)
     X_recon = pca.inverse_transform(t)
-    crop_size = exps.crop_size
 
     plt.rcParams["figure.figsize"] = 10, 10
     diff = sample_imgs - X_recon
     fig = vis.img_grid(
-        [d.reshape(crop_size, crop_size) for d in sample_imgs] + [d.reshape(crop_size, crop_size) for d in X_recon],
+        [d.reshape(exps.img_size) for d in sample_imgs] + [d.reshape(exps.img_size) for d in X_recon],
         clim=(0, 1), rows=2, cols=5, titles=[f'Disease:{d}, Bias:{b}' for d, b in zip(disease, bias)])
-    fig = vis.img_grid([d.reshape(crop_size, crop_size) for d in diff], clim=(-.5, .5), cols=5, cmap='seismic')
+    fig = vis.img_grid([d.reshape(exps.img_size) for d in diff], clim=(-.5, .5), cols=5, cmap='seismic')
     plt.show()
 
 
 def data_as_list(csv_path, img_path, exps, g):
-    t = Compose([ToFloatUKBB(), ToTensor(), CenterCrop(exps.crop_size)])
+    t = Compose([ToTensor()])
 
     ds = SimBADataset(csv_path, img_path, exps.exp_name == 'no_bias', transform=t)
     dloader = DataLoader(ds, batch_size=exps.batch_size, shuffle=True, num_workers=2,
