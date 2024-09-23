@@ -8,3 +8,4 @@ monai
 matplotlib
 tensorboard
 tqdm
+seaborn

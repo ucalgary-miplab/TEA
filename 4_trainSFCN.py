@@ -7,6 +7,7 @@ import torch
 from monai.data import DataLoader
 from monai.data.utils import pad_list_data_collate
 from monai.transforms import Compose, ToTensor
+from sklearn.metrics import confusion_matrix
 from tqdm.auto import tqdm
 
 from experiments import setup_experiments
@@ -51,7 +52,9 @@ def test_sfcn(model, val_loader, device):
             predictions += outputs.tolist()
             targets += b.detach().cpu().numpy().squeeze().tolist()
 
-    return np.mean(np.array(predictions) == np.array(targets))
+    targets = np.array(targets).squeeze()
+    predictions = np.array(predictions).squeeze()
+    return targets, predictions, np.mean(predictions == targets)
 
 
 def main(exp_name):
@@ -94,26 +97,28 @@ def main(exp_name):
 
     for epoch in (pbar := tqdm(range(exps.sfcn['epochs']))):
         train_loss = train_sfcn(model, train_loader, device, optimizer, loss_function)
-        val_accuracy = test_sfcn(model, val_loader, device)
+        _, _, val_accuracy = test_sfcn(model, val_loader, device)
         pbar.set_description(f'Epoch {epoch + 1} - Training Loss: {train_loss:.3f}, Val accuracy: {val_accuracy:.3f}')
 
     test_ds = SimBADataset(test_csv, test_images, exps.exp_name == 'no_bias', transform=t)
-    test_loader = DataLoader(test_ds, batch_size=exps.sfcn['batch_size'], shuffle=True,
+    test_loader = DataLoader(test_ds, batch_size=exps.sfcn['batch_size'], shuffle=False,
                              num_workers=exps.sfcn['workers'],
                              worker_init_fn=seed_worker, generator=g, pin_memory=torch.cuda.is_available(),
                              collate_fn=pad_list_data_collate)
 
     cf_ds = SimBADataset(test_csv, cf_images, no_bias=True, transform=t)
-    cf_loader = DataLoader(cf_ds, batch_size=exps.sfcn['batch_size'], shuffle=True,
+    cf_loader = DataLoader(cf_ds, batch_size=exps.sfcn['batch_size'], shuffle=False,
                            num_workers=exps.sfcn['workers'],
                            worker_init_fn=seed_worker, generator=g, pin_memory=torch.cuda.is_available(),
                            collate_fn=pad_list_data_collate)
 
-    test_accuracy = test_sfcn(model, test_loader, device)
+    t_t, p_t, test_accuracy = test_sfcn(model, test_loader, device)
     print(f'Test accuracy: {test_accuracy:.3f}')
+    print(f'Test confusion matrix\n {confusion_matrix(t_t, p_t)}')
 
-    cf_accuracy = test_sfcn(model, cf_loader, device)
+    t_cf, p_cf, cf_accuracy = test_sfcn(model, cf_loader, device)
     print(f'MACAW CF accuracy: {cf_accuracy:.3f}')
+    print(f'MACAW CF confusion matrix\n {confusion_matrix(t_t, p_cf)}')
 
 
 if __name__ == '__main__':

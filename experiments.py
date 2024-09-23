@@ -25,6 +25,24 @@ moin_bias.optim = {'weight_decay': 0.00005, 'optimizer': "Adam", 'lr': 0.001, 'b
 moin_bias.sfcn = {'batch_size': 32, 'workers': 4, 'epochs': 200, 'max_images': -1, 'lr': 0.001, 'patience': 5}
 EXPS_REGISTRY[moin_bias.exp_name] = moin_bias
 
+no_bias = Exps()
+no_bias.exp_name = 'no_bias'
+no_bias.dim_red = 'PCA'
+no_bias.n_comps = 500
+no_bias.n_causes = 2
+no_bias.n_evecs = 50
+no_bias.batch_size = 64
+no_bias.img_size = (211, 173)
+no_bias.debug = True
+no_bias.path = f'/data/Data/SimBA-MACAW/{no_bias.exp_name}'
+no_bias.device = 'cuda'
+no_bias.flow = {'nl': 4, 'hm': [4, 6, 6, 4], 'batch_norm': True}
+no_bias.training = {'epochs': 200, 'batch_size': 64, 'patience': 10, 'min_delta': 50}
+no_bias.optim = {'weight_decay': 0.00005, 'optimizer': "Adam", 'lr': 0.001, 'beta1': 0.9, 'amsgrad': False,
+                   'scheduler': True}
+no_bias.sfcn = {'batch_size': 32, 'workers': 4, 'epochs': 200, 'max_images': -1, 'lr': 0.001, 'patience': 5}
+EXPS_REGISTRY[no_bias.exp_name] = no_bias
+
 far_bias = Exps()
 far_bias.exp_name = 'far_bias'
 far_bias.dim_red = 'PCA'
