@@ -3,6 +3,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import torch
 from monai.data import DataLoader
 from monai.data.utils import pad_list_data_collate
@@ -45,16 +46,18 @@ def test_sfcn(model, val_loader, device):
     model.eval()
     predictions = []
     targets = []
+    imns = []
     with torch.no_grad():
         for d, b, i, imn in val_loader:
             inputs = i.to(device)
             outputs = 1 * (model(inputs).detach().cpu().numpy().squeeze() > 0.5)
             predictions += outputs.tolist()
             targets += b.detach().cpu().numpy().squeeze().tolist()
+            imns += imn
 
     targets = np.array(targets).squeeze()
     predictions = np.array(predictions).squeeze()
-    return targets, predictions, np.mean(predictions == targets)
+    return targets, predictions, imns, np.mean(predictions == targets)
 
 
 def main(exp_name):
@@ -97,7 +100,7 @@ def main(exp_name):
 
     for epoch in (pbar := tqdm(range(exps.sfcn['epochs']))):
         train_loss = train_sfcn(model, train_loader, device, optimizer, loss_function)
-        _, _, val_accuracy = test_sfcn(model, val_loader, device)
+        _, _, _,val_accuracy = test_sfcn(model, val_loader, device)
         pbar.set_description(f'Epoch {epoch + 1} - Training Loss: {train_loss:.3f}, Val accuracy: {val_accuracy:.3f}')
 
     test_ds = SimBADataset(test_csv, test_images, exps.exp_name == 'no_bias', transform=t)
@@ -112,13 +115,16 @@ def main(exp_name):
                            worker_init_fn=seed_worker, generator=g, pin_memory=torch.cuda.is_available(),
                            collate_fn=pad_list_data_collate)
 
-    t_t, p_t, test_accuracy = test_sfcn(model, test_loader, device)
+    t_t, p_t,_,test_accuracy = test_sfcn(model, test_loader, device)
     print(f'Test accuracy: {test_accuracy:.3f}')
     print(f'Test confusion matrix\n {confusion_matrix(t_t, p_t)}')
 
-    t_cf, p_cf, cf_accuracy = test_sfcn(model, cf_loader, device)
+    t_cf, p_cf, imn_cf, cf_accuracy = test_sfcn(model, cf_loader, device)
     print(f'MACAW CF accuracy: {cf_accuracy:.3f}')
     print(f'MACAW CF confusion matrix\n {confusion_matrix(t_t, p_cf)}')
+
+    df = pd.DataFrame(zip(imn_cf,p_cf), columns=['filename', 'predictions'])
+    df.to_csv(cf_images/'predictions.csv', index=False)
 
 
 if __name__ == '__main__':
