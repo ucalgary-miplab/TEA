@@ -2,6 +2,10 @@
 __pycache__/
 *.py[cod]
 *$py.class
+runs/
+logs/
+temp/
+
 
 # C extensions
 *.so
