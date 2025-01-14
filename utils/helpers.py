@@ -1,9 +1,7 @@
 import argparse
-import os
 import random
 
 import numpy as np
-import tifffile as tiff
 import torch
 from torch.utils.data import DataLoader, random_split
 
@@ -62,7 +60,8 @@ def seed_all(seed, deterministic=True):
 
     g = torch.Generator()
     g.manual_seed(seed)
-    return g 
+    return g
+
 
 def seed_worker(worker_id):
     worker_seed = torch.initial_seed() % 2 ** 32

@@ -31,7 +31,7 @@ def generate_cf(exps):
     exp_path = Path(exps.path)
     pca_path = exp_path / 'data' / 'pca'
     model_path = exp_path / 'models' / f'{exps.dim_red}_{exps.n_comps}' / f'{exps.n_evecs}'
-    save_path = exp_path / 'cfs' / 'no_bias'
+    save_path = exp_path / 'macaw_cfs' / 'no_bias'
     test_path = pca_path / f'test_{exps.dim_red}_{exps.n_comps}.pkl'
 
     if not os.path.exists(save_path):

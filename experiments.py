@@ -55,7 +55,7 @@ far_bias.debug = True
 far_bias.path = f'/data/Data/SimBA-MACAW/{far_bias.exp_name}'
 far_bias.device = 'cuda'
 far_bias.flow = {'nl': 4, 'hm': [4, 6, 6, 4], 'batch_norm': True}
-far_bias.training = {'epochs': 200, 'batch_size': 64, 'patience': 10, 'min_delta': 50}
+far_bias.training = {'epochs': 200, 'batch_size': 64, 'patience': 7, 'min_delta': 50}
 far_bias.optim = {'weight_decay': 0.00005, 'optimizer': "Adam", 'lr': 0.001, 'beta1': 0.9, 'amsgrad': False,
                   'scheduler': True}
 far_bias.sfcn = {'batch_size': 32, 'workers': 4, 'epochs': 5, 'max_images': -1, 'lr': 0.0001, 'patience': 5}

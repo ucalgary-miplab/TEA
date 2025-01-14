@@ -57,6 +57,7 @@ def train_macaw(exps, g):
     autoregressive_latents = [(i, j) for i in range(exps.n_causes, exps.n_evecs + exps.n_causes) for j in
                               range(i + 1, exps.n_evecs + exps.n_causes)]
     edges = disease_to_latents + bias_to_latents + autoregressive_latents
+    # edges = disease_to_latents + bias_to_latents
 
     # Prior distributions
     P_bias = np.sum(bias_t) / len(bias_t)

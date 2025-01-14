@@ -76,7 +76,8 @@ def main(exp_name):
 
     test_csv = data_path / 'csv' / 'test.csv'
     test_images = data_path / 'images' / 'test'
-    cf_images = exp_path / 'cfs' / 'no_bias'
+    macaw_cf_images = exp_path / 'macaw_cfs' / 'no_bias'
+    hvae_cf_images = exp_path / 'hvae_cfs' / 'no_bias'
 
     t = Compose([ToTensor()])
 
@@ -109,22 +110,35 @@ def main(exp_name):
                              worker_init_fn=seed_worker, generator=g, pin_memory=torch.cuda.is_available(),
                              collate_fn=pad_list_data_collate)
 
-    cf_ds = SimBADataset(test_csv, cf_images, no_bias=True, transform=t)
+    t_t, p_t, _, test_accuracy = test_sfcn(model, test_loader, device)
+    print(f'Test accuracy: {test_accuracy:.3f}')
+    print(f'Test confusion matrix\n {confusion_matrix(t_t, p_t)}')
+
+    cf_ds = SimBADataset(test_csv, macaw_cf_images, no_bias=True, transform=t)
     cf_loader = DataLoader(cf_ds, batch_size=exps.sfcn['batch_size'], shuffle=False,
                            num_workers=exps.sfcn['workers'],
                            worker_init_fn=seed_worker, generator=g, pin_memory=torch.cuda.is_available(),
                            collate_fn=pad_list_data_collate)
-
-    t_t, p_t,_,test_accuracy = test_sfcn(model, test_loader, device)
-    print(f'Test accuracy: {test_accuracy:.3f}')
-    print(f'Test confusion matrix\n {confusion_matrix(t_t, p_t)}')
 
     t_cf, p_cf, imn_cf, cf_accuracy = test_sfcn(model, cf_loader, device)
     print(f'MACAW CF accuracy: {cf_accuracy:.3f}')
     print(f'MACAW CF confusion matrix\n {confusion_matrix(t_t, p_cf)}')
 
     df = pd.DataFrame(zip(imn_cf,p_cf), columns=['filename', 'predictions'])
-    df.to_csv(cf_images/'predictions.csv', index=False)
+    df.to_csv(macaw_cf_images/'predictions.csv', index=False)
+
+    cf_ds = SimBADataset(test_csv, hvae_cf_images, no_bias=True, transform=t)
+    cf_loader = DataLoader(cf_ds, batch_size=exps.sfcn['batch_size'], shuffle=False,
+                           num_workers=exps.sfcn['workers'],
+                           worker_init_fn=seed_worker, generator=g, pin_memory=torch.cuda.is_available(),
+                           collate_fn=pad_list_data_collate)
+
+    t_cf, p_cf, imn_cf, cf_accuracy = test_sfcn(model, cf_loader, device)
+    print(f'H-VAE CF accuracy: {cf_accuracy:.3f}')
+    print(f'H-VAE CF confusion matrix\n {confusion_matrix(t_t, p_cf)}')
+
+    df = pd.DataFrame(zip(imn_cf,p_cf), columns=['filename', 'predictions'])
+    df.to_csv(hvae_cf_images/'predictions.csv', index=False)
 
 
 if __name__ == '__main__':
