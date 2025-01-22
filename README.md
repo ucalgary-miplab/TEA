@@ -1,17 +1,16 @@
-# CounterBias
+# TEA
 
-Counterfactual Evaluation With SimBA
+Evaluating causal generative models with synthetic ground truth medical image counterfactuals.
 
-# Installation Instructions
 
 ## Installations
 
 1. **Install Miniconda/Conda**
 2. **Create a new Conda environment:**
    ```bash
-   conda create -n counterbias python=3.10
+   conda create -n tea python=3.10
    
-   conda activate counterbias
+   conda activate tea
    
    pip install -r requirements.txt
 
@@ -20,23 +19,15 @@ Counterfactual Evaluation With SimBA
 The directory should have the following structure:
 
   ```
-   Experiment_name (e.g., far_bias)
+   Experiment_name (e.g., exp205)
   ├── data
-  |   |- csv
-  |   |   |- train.csv
-  |   |   |- test.csv
-  |   |   |- val.csv
-  |   |- pca
-  |   |- images
-  │      ├── train
-  │      ├── test
-  │      └── val
-  ├── cfs
-  └── models
-         |- MACAW
-         |- SFCN
-         |- HVAE
-         
+  |   |- train.csv
+  |   |- test.csv
+  |   |- val.csv
+  |   ├── train
+  │   ├── test
+  │   └── val
+
   ```
 
 ## Run
@@ -44,4 +35,4 @@ The directory should have the following structure:
 **After creating these directories, try running the following command to verify:**
 
 ```bash
-./run.sh far_bias
+./run.sh exp205

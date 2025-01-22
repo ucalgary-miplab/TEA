@@ -1,5 +1,6 @@
 numpy
 tiffile
+nibabel
 torch
 torchvision
 scikit-learn

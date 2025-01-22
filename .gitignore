@@ -5,6 +5,8 @@ __pycache__/
 runs/
 logs/
 temp/
+data/
+results/
 
 
 # C extensions
