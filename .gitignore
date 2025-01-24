@@ -6,7 +6,6 @@ runs/
 logs/
 temp/
 data/
-results/
 
 
 # C extensions
