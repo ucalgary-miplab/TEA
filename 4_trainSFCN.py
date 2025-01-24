@@ -74,15 +74,17 @@ def main(exp_name):
     val_images = data_path / "val"
 
     test_csv = data_path / "test.csv"
-    test_images = data_path / "test"
-    macaw_cf_images = data_path / "macaw_cfs" / "no_bias"
-    hvae_cf_images = data_path / "hvae_cfs" / "no_bias"
+
+    bias_test_images = data_path / "test" / "bias"
+    no_bias_test_images = data_path / "test" / "no_bias"
+
+    no_bias_macaw_cf = data_path / "macaw_cfs" / "no_bias"
+    bias_macaw_cf = data_path / "macaw_cfs" / "bias"
 
     t = Compose([ToTensor()])
 
-    train_ds = SimBADataset(
-        train_csv, train_images, exps.exp_name == "no_bias", transform=t
-    )
+    train_ds = SimBADataset(train_csv, train_images, transform=t)
+
     train_loader = DataLoader(
         train_ds,
         batch_size=exps.sfcn["batch_size"],
@@ -94,7 +96,7 @@ def main(exp_name):
         collate_fn=pad_list_data_collate,
     )
 
-    val_ds = SimBADataset(val_csv, val_images, exps.exp_name == "no_bias", transform=t)
+    val_ds = SimBADataset(val_csv, val_images, transform=t)
     val_loader = DataLoader(
         val_ds,
         batch_size=exps.sfcn["batch_size"],
@@ -119,9 +121,7 @@ def main(exp_name):
             f"Epoch {epoch + 1} - Training Loss: {train_loss:.3f}, Val accuracy: {val_accuracy:.3f}"
         )
 
-    test_ds = SimBADataset(
-        test_csv, test_images, exps.exp_name == "no_bias", transform=t
-    )
+    test_ds = SimBADataset(test_csv, no_bias_test_images, bias_label=0, transform=t)
     test_loader = DataLoader(
         test_ds,
         batch_size=exps.sfcn["batch_size"],
@@ -134,10 +134,24 @@ def main(exp_name):
     )
 
     t_t, p_t, _, test_accuracy = test_sfcn(model, test_loader, device)
-    print(f"Test accuracy: {test_accuracy:.3f}")
-    print(f"Test confusion matrix\n {confusion_matrix(t_t, p_t)}")
+    print(f"No bias test accuracy: {test_accuracy:.3f}")
 
-    cf_ds = SimBADataset(test_csv, macaw_cf_images, no_bias=True, transform=t)
+    test_ds = SimBADataset(test_csv, bias_test_images, bias_label=1, transform=t)
+    test_loader = DataLoader(
+        test_ds,
+        batch_size=exps.sfcn["batch_size"],
+        shuffle=False,
+        num_workers=exps.sfcn["workers"],
+        worker_init_fn=seed_worker,
+        generator=g,
+        pin_memory=torch.cuda.is_available(),
+        collate_fn=pad_list_data_collate,
+    )
+
+    t_t, p_t, _, test_accuracy = test_sfcn(model, test_loader, device)
+    print(f"Bias test accuracy: {test_accuracy:.3f}")
+
+    cf_ds = SimBADataset(test_csv, no_bias_macaw_cf, bias_label=0, transform=t)
     cf_loader = DataLoader(
         cf_ds,
         batch_size=exps.sfcn["batch_size"],
@@ -150,13 +164,12 @@ def main(exp_name):
     )
 
     t_cf, p_cf, imn_cf, cf_accuracy = test_sfcn(model, cf_loader, device)
-    print(f"MACAW CF accuracy: {cf_accuracy:.3f}")
-    print(f"MACAW CF confusion matrix\n {confusion_matrix(t_t, p_cf)}")
+    print(f"No bias MACAW CF accuracy: {cf_accuracy:.3f}")
 
     df = pd.DataFrame(zip(imn_cf, p_cf), columns=["filename", "predictions"])
-    df.to_csv(macaw_cf_images / "predictions.csv", index=False)
+    df.to_csv(no_bias_macaw_cf / "predictions.csv", index=False)
 
-    cf_ds = SimBADataset(test_csv, hvae_cf_images, no_bias=True, transform=t)
+    cf_ds = SimBADataset(test_csv, bias_macaw_cf, bias_label=1, transform=t)
     cf_loader = DataLoader(
         cf_ds,
         batch_size=exps.sfcn["batch_size"],
@@ -169,11 +182,10 @@ def main(exp_name):
     )
 
     t_cf, p_cf, imn_cf, cf_accuracy = test_sfcn(model, cf_loader, device)
-    print(f"H-VAE CF accuracy: {cf_accuracy:.3f}")
-    print(f"H-VAE CF confusion matrix\n {confusion_matrix(t_t, p_cf)}")
+    print(f"Bias MACAW CF accuracy: {cf_accuracy:.3f}")
 
     df = pd.DataFrame(zip(imn_cf, p_cf), columns=["filename", "predictions"])
-    df.to_csv(hvae_cf_images / "predictions.csv", index=False)
+    df.to_csv(bias_macaw_cf / "predictions.csv", index=False)
 
 
 if __name__ == "__main__":

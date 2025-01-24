@@ -37,7 +37,8 @@ def encode_data(exps, g):
 
     train_img_path = data_path / "train"
     val_img_path = data_path / "val"
-    test_img_path = data_path / "test"
+    bias_test_img_path = data_path / "test" / "bias"
+    no_bias_test_img_path = data_path / "test" / "no_bias"
 
     if not os.path.exists(pca_path):
         os.mkdir(pca_path)
@@ -84,12 +85,34 @@ def encode_data(exps, g):
             f,
         )
 
-    print("Loading test data...")
-    imgs, disease, bias, img_names = data_as_list(test_csv_path, test_img_path, exps, g)
+    print("Loading bias test data...")
+    imgs, disease, bias, img_names = data_as_list(
+        test_csv_path, bias_test_img_path, exps, g, bias_label=1
+    )
     encoded_data = pca.transform(imgs)
 
     print("Saving encoded test data...")
-    with open(pca_path / f"test_{exps.dim_red}_{exps.n_comps}.pkl", "wb") as f:
+    with open(pca_path / f"bias_test_{exps.dim_red}_{exps.n_comps}.pkl", "wb") as f:
+        pickle.dump(
+            {
+                "imgs": imgs,
+                "disease": disease,
+                "bias": bias,
+                "pca": pca,
+                "encoded_data": encoded_data,
+                "img_names": img_names,
+            },
+            f,
+        )
+
+    print("Loading no bias test data...")
+    imgs, disease, bias, img_names = data_as_list(
+        test_csv_path, no_bias_test_img_path, exps, g, bias_label=0
+    )
+    encoded_data = pca.transform(imgs)
+
+    print("Saving encoded test data...")
+    with open(pca_path / f"no_bias_test_{exps.dim_red}_{exps.n_comps}.pkl", "wb") as f:
         pickle.dump(
             {
                 "imgs": imgs,
@@ -137,10 +160,10 @@ def view_reconstruction(exps):
     plt.show()
 
 
-def data_as_list(csv_path, img_path, exps, g):
+def data_as_list(csv_path, img_path, exps, g, bias_label=None):
     t = Compose([ToTensor()])
 
-    ds = SimBADataset(csv_path, img_path, exps.exp_name == "no_bias", transform=t)
+    ds = SimBADataset(csv_path, img_path, bias_label=bias_label, transform=t)
     dloader = DataLoader(
         ds,
         batch_size=exps.batch_size,

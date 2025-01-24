@@ -11,46 +11,28 @@ from tqdm.auto import tqdm
 from experiments import setup_experiments
 
 
-def main(exp_name):
+def main(exp_name, add_or_remove):
     exps = setup_experiments(exp_name)
     data_path = Path(exps.path)
-    pca_path = data_path / "pca" / f"train_{exps.dim_red}_{exps.n_comps}.pkl"
+
     model_path = (
         data_path / "models" / f"{exps.dim_red}_{exps.n_comps}" / f"{exps.n_evecs}"
     )
 
-    if not os.path.exists(pca_path):
-        raise RuntimeError(
-            "Encoding path does not exist. Please run the encoding script first."
+    if add_or_remove == "add":
+        cf_vals = {1: 1}
+        save_path = data_path / "macaw_cfs" / "bias"
+        test_path = (
+            data_path / "pca" / f"no_bias_test_{exps.dim_red}_{exps.n_comps}.pkl"
         )
-
-    if not os.path.exists(model_path):
-        raise RuntimeError(
-            "Model path does not exist. Please run the train script first."
-        )
-
-    generate_cf(exps)
-
-
-def generate_cf(exps):
-    exp_path = Path(exps.path)
-    pca_path = exp_path / "pca"
-    model_path = (
-        exp_path / "models" / f"{exps.dim_red}_{exps.n_comps}" / f"{exps.n_evecs}"
-    )
-    save_path = exp_path / "macaw_cfs" / "no_bias"
-    test_path = pca_path / f"test_{exps.dim_red}_{exps.n_comps}.pkl"
-
-    if not os.path.exists(save_path):
-        os.makedirs(save_path)
+    elif add_or_remove == "remove":
+        cf_vals = {1: 0}
+        save_path = data_path / "macaw_cfs" / "no_bias"
+        test_path = data_path / "pca" / f"bias_test_{exps.dim_red}_{exps.n_comps}.pkl"
     else:
-        user_input = input(
-            "Counterfactuals already exist. Existing images will be overwritten. Continue? [Yes/no]"
-        )
-        if user_input.lower() == "yes":
-            print("Continuing...")
-        else:
-            raise RuntimeError("Exiting...")
+        raise ValueError("second argument must be add or remove")
+
+    validate_paths(model_path, save_path, test_path)
 
     with open(test_path, "rb") as f:
         test = pickle.load(f)
@@ -63,8 +45,6 @@ def generate_cf(exps):
 
     nsamples = len(img_names)
     print("Number of samples: ", nsamples)
-
-    cf_vals = {1: 0}
 
     cf = np.zeros((nsamples, exps.n_comps))
     for e in range(0, exps.n_comps - 1, exps.n_evecs):
@@ -82,6 +62,30 @@ def generate_cf(exps):
         tiff.imwrite(save_path / f"{name.replace('nii.gz', 'tiff')}", i)
 
 
+def validate_paths(model_path, save_path, test_path):
+    if not os.path.exists(model_path):
+        raise RuntimeError(
+            "Model path does not exist. Please run the train script first."
+        )
+
+    if not os.path.exists(test_path):
+        raise RuntimeError(
+            "Encoding test path does not exist. Please run the encoding script first."
+        )
+
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+    else:
+        user_input = input(
+            "Counterfactuals already exist. Existing images will be overwritten. Continue? [Yes/no]"
+        )
+        if user_input.lower() == "yes":
+            print("Continuing...")
+        else:
+            raise RuntimeError("Exiting...")
+
+
 if __name__ == "__main__":
     exp_name = sys.argv[1]
-    main(exp_name)
+    add_or_remove = sys.argv[2]
+    main(exp_name, add_or_remove)
