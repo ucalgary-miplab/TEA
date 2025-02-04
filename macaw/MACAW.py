@@ -2,6 +2,7 @@
 Implements Masked AutoEncoder for Density Estimation, by Germain et al. 2015
 Re-implementation by Andrej Karpathy based on https://arxiv.org/abs/1502.03509
 """
+
 import os
 import sys
 
@@ -38,13 +39,13 @@ class MACAW:
 
     def __init__(self, config):
         self.c = config
-        self.n_layers = config.flow['nl']
-        self.hidden = config.flow['hm']
-        self.epochs = config.training['epochs']
-        self.batch_size = config.training['batch_size']
+        self.n_layers = config.flow["nl"]
+        self.hidden = config.flow["hm"]
+        self.epochs = config.training["epochs"]
+        self.batch_size = config.training["batch_size"]
         self.device = config.device
-        self.patience = config.training['patience']
-        self.min_delta = config.training['min_delta']
+        self.patience = config.training["patience"]
+        self.min_delta = config.training["min_delta"]
 
         self.dim = None
         self.model = None
@@ -66,26 +67,39 @@ class MACAW:
         if augment:
             data, edges = self._augment(data, edges)
 
-        if self.c.flow.prior_dist == 'laplace':
-            prior = Laplace(torch.zeros(self.dim + self.pdim).to(self.device),
-                            torch.ones(self.dim + self.pdim).to(self.device))
-        elif self.c.flow.prior_dist == 'normal':
-            prior = Normal(torch.zeros(self.dim + self.pdim).to(self.device),
-                           torch.ones(self.dim + self.pdim).to(self.device))
+        if self.c.flow.prior_dist == "laplace":
+            prior = Laplace(
+                torch.zeros(self.dim + self.pdim).to(self.device),
+                torch.ones(self.dim + self.pdim).to(self.device),
+            )
+        elif self.c.flow.prior_dist == "normal":
+            prior = Normal(
+                torch.zeros(self.dim + self.pdim).to(self.device),
+                torch.ones(self.dim + self.pdim).to(self.device),
+            )
         else:
             raise Exception("No prior distribution is defined in config!")
 
         dataset = CustomDataset(data.astype(np.float32), self.device)
         train_loader = DataLoader(dataset, shuffle=True, batch_size=self.batch_size)
 
-        flow_list = [Flow(self.dim + self.pdim, edges, self.device) for _ in range(self.n_layers)]
+        flow_list = [
+            Flow(self.dim + self.pdim, edges, self.device) for _ in range(self.n_layers)
+        ]
         self.model = NormalizingFlowModel(prior, flow_list).to(self.device)
 
-        optimizer = optim.Adam(self.model.parameters(), lr=self.c.optim.lr, weight_decay=self.c.optim.weight_decay,
-                               betas=(self.c.optim.beta1, 0.999), amsgrad=self.c.optim.amsgrad)
+        optimizer = optim.Adam(
+            self.model.parameters(),
+            lr=self.c.optim.lr,
+            weight_decay=self.c.optim.weight_decay,
+            betas=(self.c.optim.beta1, 0.999),
+            amsgrad=self.c.optim.amsgrad,
+        )
 
         if self.c.optim.scheduler:
-            scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, patience=3, verbose=True)
+            scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+                optimizer, factor=0.1, patience=3, verbose=True
+            )
         else:
             scheduler = None
 
@@ -97,7 +111,7 @@ class MACAW:
                 x = x.to(self.device)
 
                 _, prior_logprob, log_det = self.model(x)
-                loss = - torch.sum(prior_logprob + log_det)
+                loss = -torch.sum(prior_logprob + log_det)
                 loss_val += loss.item()
 
                 # optimize
@@ -108,7 +122,7 @@ class MACAW:
             if self.c.optim.scheduler:
                 scheduler.step(loss_val / len(train_loader))
 
-            pbar.set_description(f'Loss: {loss_val / len(train_loader):.3f}')
+            pbar.set_description(f"Loss: {loss_val / len(train_loader):.3f}")
             loss_vals.append(loss_val / len(train_loader))
 
         return loss_vals
@@ -127,23 +141,36 @@ class MACAW:
         train_dataset = CustomDataset(train_ds.astype(np.float32), self.device)
         valid_dataset = CustomDataset(val_ds.astype(np.float32), self.device)
 
-        train_loader = DataLoader(train_dataset, shuffle=False, batch_size=self.batch_size)
-        valid_loader = DataLoader(valid_dataset, shuffle=False, batch_size=self.batch_size)
+        train_loader = DataLoader(
+            train_dataset, shuffle=False, batch_size=self.batch_size
+        )
+        valid_loader = DataLoader(
+            valid_dataset, shuffle=False, batch_size=self.batch_size
+        )
 
-        flow_list = [Flow(self.dim + self.pdim, edges, self.device, hm=self.hidden) for _ in range(self.n_layers)]
+        flow_list = [
+            Flow(self.dim + self.pdim, edges, self.device, hm=self.hidden)
+            for _ in range(self.n_layers)
+        ]
         self.model = NormalizingFlowModel(priors, flow_list).to(self.device)
 
-        optimizer = optim.Adam(self.model.parameters(), lr=self.c.optim['lr'],
-                               weight_decay=self.c.optim['weight_decay'],
-                               betas=(self.c.optim['beta1'], 0.999), amsgrad=self.c.optim['amsgrad'])
+        optimizer = optim.Adam(
+            self.model.parameters(),
+            lr=self.c.optim["lr"],
+            weight_decay=self.c.optim["weight_decay"],
+            betas=(self.c.optim["beta1"], 0.999),
+            amsgrad=self.c.optim["amsgrad"],
+        )
 
-        if self.c.optim['scheduler']:
-            scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, patience=3)
+        if self.c.optim["scheduler"]:
+            scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+                optimizer, factor=0.1, patience=3
+            )
         else:
             scheduler = None
 
         # Early stopping parameters
-        best_val_loss = float('inf')
+        best_val_loss = float("inf")
         epochs_no_improve = 0
 
         last_lr = 999
@@ -160,10 +187,10 @@ class MACAW:
                 x = x.to(self.device)
 
                 _, prior_logprob, log_det = self.model(x)
-                loss = - torch.sum(prior_logprob + log_det)
+                loss = -torch.sum(prior_logprob + log_det)
                 train_loss += loss.item()
 
-                if (loss.item() > 9999):
+                if loss.item() > 9999:
                     print(loss, prior_logprob, log_det)
 
                 # optimize
@@ -171,7 +198,7 @@ class MACAW:
                 loss.backward()
                 optimizer.step()
 
-            if self.c.optim['scheduler']:
+            if self.c.optim["scheduler"]:
                 scheduler.step(train_loss)
 
             self.model.eval()
@@ -180,7 +207,7 @@ class MACAW:
                     x = x.to(self.device)
 
                     _, prior_logprob, log_det = self.model(x)
-                    loss = - torch.sum(prior_logprob + log_det)
+                    loss = -torch.sum(prior_logprob + log_det)
                     val_loss += loss.item()
 
                     # if loss.item()>9999:
@@ -189,15 +216,9 @@ class MACAW:
             train_loss /= len(train_loader)
             val_loss /= len(valid_loader)
 
-            curr_lr = optimizer.param_groups[0]['lr']
-            # print(f'Epoch {e + 1}/{self.epochs} - Training Loss: {train_loss:.3f}, Val Loss: {val_loss:.3f}, LR: {curr_lr:.6f}')
-
-            if curr_lr < last_lr:
-                last_lr = curr_lr
-                print(e, last_lr)
-
             pbar.set_description(
-                f'Epoch {e + 1}/{self.epochs} - Training Loss: {train_loss:.3f}, Val Loss: {val_loss:.3f}, LR: {curr_lr:.6f}')
+                f"Epoch {e + 1}/{self.epochs} - Training Loss: {train_loss:.3f}, Val Loss: {val_loss:.3f}"
+            )
             loss_vals_train.append(train_loss)
             loss_vals_val.append(val_loss)
 
@@ -205,14 +226,14 @@ class MACAW:
                 writer.add_scalars(f"losses", {"train": train_loss, "val": val_loss}, e)
 
             # Check for early stopping
-            if val_loss < best_val_loss - self.min_delta:
+            if val_loss < best_val_loss + self.min_delta:
                 best_val_loss = val_loss
                 epochs_no_improve = 0
             else:
                 epochs_no_improve += 1
 
             if epochs_no_improve >= self.patience:
-                print(f'Early stopping at epoch {e + 1}')
+                print(f"Early stopping at epoch {e + 1}")
                 break
 
         return loss_vals_train, loss_vals_val
@@ -227,7 +248,7 @@ class MACAW:
                     z[:, sl] = dist.sample((n_samples,)).cpu().detach().numpy()
             else:
                 z = self.model.priors.sample((n_samples,)).cpu().detach().numpy()
-            return self._backward_flow(z)[:, self.pdim:]
+            return self._backward_flow(z)[:, self.pdim :]
 
     def intervene_parent(self, int_vals, n_samples=100):
         """
@@ -261,7 +282,7 @@ class MACAW:
                 if key in self.parents:
                     z[:, key] = z_int[:, key]
 
-            return self._backward_flow(z)[:, self.pdim:]
+            return self._backward_flow(z)[:, self.pdim :]
 
     def counterfactual(self, x_obs, cf_vals):
         """
@@ -293,7 +314,7 @@ class MACAW:
                 if key in self.parents:
                     z_obs[:, key] = z_cf_val[:, key]
             # prediction (pass through the flow):
-            return self._backward_flow(z_obs)[:, self.pdim:]
+            return self._backward_flow(z_obs)[:, self.pdim :]
 
     def log_likelihood(self, X):
         self.model.eval()
@@ -311,25 +332,40 @@ class MACAW:
         self.parents = [n for n in nodes if len(list(G.predecessors(n))) == 0]
         self.pdim = len(self.parents)
 
-        new_edges = [(i, i + self.pdim) for i in self.parents] + [(i + self.pdim, j + self.pdim) for i, j in edges]
+        new_edges = [(i, i + self.pdim) for i in self.parents] + [
+            (i + self.pdim, j + self.pdim) for i, j in edges
+        ]
         new_X = np.hstack([data[:, self.parents]] + [data])
 
         return new_X, new_edges
 
     def _forward_flow(self, data):
         if self.model is None:
-            raise ValueError('Model needs to be fitted first')
-        return self.model.forward(torch.tensor(data.astype(np.float32)).to(self.device))[0][-1].detach().cpu().numpy()
+            raise ValueError("Model needs to be fitted first")
+        return (
+            self.model.forward(torch.tensor(data.astype(np.float32)).to(self.device))[
+                0
+            ][-1]
+            .detach()
+            .cpu()
+            .numpy()
+        )
 
     def _backward_flow(self, latent):
         if self.model is None:
-            raise ValueError('Model needs to be fitted first')
-        return self.model.backward(torch.tensor(latent.astype(np.float32)).to(self.device))[0][
-            -1].detach().cpu().numpy()
+            raise ValueError("Model needs to be fitted first")
+        return (
+            self.model.backward(
+                torch.tensor(latent.astype(np.float32)).to(self.device)
+            )[0][-1]
+            .detach()
+            .cpu()
+            .numpy()
+        )
 
 
 class CustomDataset(Dataset):
-    def __init__(self, X, device='cpu'):
+    def __init__(self, X, device="cpu"):
         self.device = device
         self.x = torch.from_numpy(X).to(device)
         self.len = self.x.shape[0]
@@ -346,6 +382,6 @@ class CustomDataset(Dataset):
 
     def get_metadata(self):
         return {
-            'n': self.len,
-            'data_dim': self.data_dim,
+            "n": self.len,
+            "data_dim": self.data_dim,
         }

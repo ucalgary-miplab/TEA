@@ -18,11 +18,11 @@ exp.img_size = (192, 192)
 exp.debug = True
 exp.path = f"data/{exp.exp_name}"
 exp.device = "cuda"
-exp.flow = {"nl": 4, "hm": [4, 6, 6, 4], "batch_norm": True}
-exp.training = {"epochs": 200, "batch_size": 64, "patience": 7, "min_delta": 50}
+exp.flow = {"nl": 5, "hm": [4, 6, 6, 4], "batch_norm": True}
+exp.training = {"epochs": 200, "batch_size": 64, "patience": 4, "min_delta": 50}
 exp.optim = {
     "weight_decay": 0.00005,
-    "optimizer": "Adam",
+    "optimizer": "AdamW",
     "lr": 0.001,
     "beta1": 0.9,
     "amsgrad": False,
