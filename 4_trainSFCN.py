@@ -8,7 +8,6 @@ import torch
 from monai.data import DataLoader
 from monai.data.utils import pad_list_data_collate
 from monai.transforms import Compose, ToTensor
-from sklearn.metrics import confusion_matrix
 from tqdm.auto import tqdm
 
 from experiments import setup_experiments
@@ -50,14 +49,28 @@ def test_sfcn(model, val_loader, device):
     with torch.no_grad():
         for d, b, i, imn in val_loader:
             inputs = i.to(device)
-            outputs = 1 * (model(inputs).detach().cpu().numpy().squeeze() > 0.5)
+            outputs = model(inputs).detach().cpu().numpy().squeeze()
             predictions += outputs.tolist()
             targets += b.detach().cpu().numpy().squeeze().tolist()
             imns += imn
 
     targets = np.array(targets).squeeze()
     predictions = np.array(predictions).squeeze()
-    return targets, predictions, imns, np.mean(predictions == targets)
+    threholded_preds = 1 * (predictions > 0.5)
+    return targets, predictions, imns, np.mean(threholded_preds == targets)
+
+
+def dl(test_ds, exps, g):
+    return DataLoader(
+        test_ds,
+        batch_size=exps.sfcn["batch_size"],
+        shuffle=True,
+        num_workers=exps.sfcn["workers"],
+        worker_init_fn=seed_worker,
+        generator=g,
+        pin_memory=torch.cuda.is_available(),
+        collate_fn=pad_list_data_collate,
+    )
 
 
 def main(exp_name):
@@ -87,29 +100,10 @@ def main(exp_name):
     t = Compose([ToTensor()])
 
     train_ds = SimBADataset(train_csv, train_images, transform=t)
-
-    train_loader = DataLoader(
-        train_ds,
-        batch_size=exps.sfcn["batch_size"],
-        shuffle=True,
-        num_workers=exps.sfcn["workers"],
-        worker_init_fn=seed_worker,
-        generator=g,
-        pin_memory=torch.cuda.is_available(),
-        collate_fn=pad_list_data_collate,
-    )
+    train_loader = dl(train_ds, exps, g)
 
     val_ds = SimBADataset(val_csv, val_images, transform=t)
-    val_loader = DataLoader(
-        val_ds,
-        batch_size=exps.sfcn["batch_size"],
-        shuffle=True,
-        num_workers=exps.sfcn["workers"],
-        worker_init_fn=seed_worker,
-        generator=g,
-        pin_memory=torch.cuda.is_available(),
-        collate_fn=pad_list_data_collate,
-    )
+    val_loader = dl(val_ds, exps, g)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = SFCNModel().to(device)
@@ -125,104 +119,40 @@ def main(exp_name):
         )
 
     test_ds = SimBADataset(test_csv, no_bias_test_images, bias_label=0, transform=t)
-    test_loader = DataLoader(
-        test_ds,
-        batch_size=exps.sfcn["batch_size"],
-        shuffle=False,
-        num_workers=exps.sfcn["workers"],
-        worker_init_fn=seed_worker,
-        generator=g,
-        pin_memory=torch.cuda.is_available(),
-        collate_fn=pad_list_data_collate,
-    )
-
+    test_loader = dl(test_ds, exps, g)
     t_t, p_t, _, test_accuracy = test_sfcn(model, test_loader, device)
     print(f"No bias test accuracy: {test_accuracy:.3f}")
 
     test_ds = SimBADataset(test_csv, bias_test_images, bias_label=1, transform=t)
-    test_loader = DataLoader(
-        test_ds,
-        batch_size=exps.sfcn["batch_size"],
-        shuffle=False,
-        num_workers=exps.sfcn["workers"],
-        worker_init_fn=seed_worker,
-        generator=g,
-        pin_memory=torch.cuda.is_available(),
-        collate_fn=pad_list_data_collate,
-    )
-
+    test_loader = dl(test_ds, exps, g)
     t_t, p_t, _, test_accuracy = test_sfcn(model, test_loader, device)
     print(f"Bias test accuracy: {test_accuracy:.3f}")
 
     cf_ds = SimBADataset(test_csv, no_bias_macaw_cf, bias_label=0, transform=t)
-    cf_loader = DataLoader(
-        cf_ds,
-        batch_size=exps.sfcn["batch_size"],
-        shuffle=False,
-        num_workers=exps.sfcn["workers"],
-        worker_init_fn=seed_worker,
-        generator=g,
-        pin_memory=torch.cuda.is_available(),
-        collate_fn=pad_list_data_collate,
-    )
-
+    cf_loader = dl(cf_ds, exps, g)
     t_cf, p_cf, imn_cf, cf_accuracy = test_sfcn(model, cf_loader, device)
     print(f"No bias MACAW CF accuracy: {cf_accuracy:.3f}")
-
     df = pd.DataFrame(zip(imn_cf, p_cf), columns=["filename", "predictions"])
     df.to_csv(no_bias_macaw_cf / "predictions.csv", index=False)
 
     cf_ds = SimBADataset(test_csv, bias_macaw_cf, bias_label=1, transform=t)
-    cf_loader = DataLoader(
-        cf_ds,
-        batch_size=exps.sfcn["batch_size"],
-        shuffle=False,
-        num_workers=exps.sfcn["workers"],
-        worker_init_fn=seed_worker,
-        generator=g,
-        pin_memory=torch.cuda.is_available(),
-        collate_fn=pad_list_data_collate,
-    )
-
+    cf_loader = dl(cf_ds, exps, g)
     t_cf, p_cf, imn_cf, cf_accuracy = test_sfcn(model, cf_loader, device)
     print(f"Bias MACAW CF accuracy: {cf_accuracy:.3f}")
-
     df = pd.DataFrame(zip(imn_cf, p_cf), columns=["filename", "predictions"])
     df.to_csv(bias_macaw_cf / "predictions.csv", index=False)
 
     cf_ds = SimBADataset(test_csv, no_bias_hvae_cf, bias_label=0, transform=t)
-    cf_loader = DataLoader(
-        cf_ds,
-        batch_size=exps.sfcn["batch_size"],
-        shuffle=False,
-        num_workers=exps.sfcn["workers"],
-        worker_init_fn=seed_worker,
-        generator=g,
-        pin_memory=torch.cuda.is_available(),
-        collate_fn=pad_list_data_collate,
-    )
-
+    cf_loader = dl(cf_ds, exps, g)
     t_cf, p_cf, imn_cf, cf_accuracy = test_sfcn(model, cf_loader, device)
     print(f"No bias HVAE CF accuracy: {cf_accuracy:.3f}")
-
     df = pd.DataFrame(zip(imn_cf, p_cf), columns=["filename", "predictions"])
     df.to_csv(no_bias_hvae_cf / "predictions.csv", index=False)
 
     cf_ds = SimBADataset(test_csv, bias_hvae_cf, bias_label=1, transform=t)
-    cf_loader = DataLoader(
-        cf_ds,
-        batch_size=exps.sfcn["batch_size"],
-        shuffle=False,
-        num_workers=exps.sfcn["workers"],
-        worker_init_fn=seed_worker,
-        generator=g,
-        pin_memory=torch.cuda.is_available(),
-        collate_fn=pad_list_data_collate,
-    )
-
+    cf_loader = dl(cf_ds, exps, g)
     t_cf, p_cf, imn_cf, cf_accuracy = test_sfcn(model, cf_loader, device)
     print(f"Bias HVAE CF accuracy: {cf_accuracy:.3f}")
-
     df = pd.DataFrame(zip(imn_cf, p_cf), columns=["filename", "predictions"])
     df.to_csv(bias_hvae_cf / "predictions.csv", index=False)
 

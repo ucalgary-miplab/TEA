@@ -31,7 +31,7 @@ exp.optim = {
 exp.sfcn = {
     "batch_size": 32,
     "workers": 4,
-    "epochs": 5,
+    "epochs": 10,
     "max_images": -1,
     "lr": 0.0001,
     "patience": 5,
