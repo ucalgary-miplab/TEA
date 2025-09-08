@@ -1,9 +1,17 @@
-# TEA
+<div align="center">
 
-Evaluating causal generative models with synthetic ground truth medical image counterfactuals.
+# Evaluating causal generative models with synthetic ground truth medical image counterfactuals
 
+</div>
 
-## Installations
+This repository contains code associated with the paper:
+> E. A. M. Stanley*, V. Vigneshwaran*, E. Y. Ohara*, F. G. Vamosi, N. D. Forkert, M. Wilms. <i>Synthetic Ground Truth Counterfactuals for Comprehensive Evaluation of Causal Generative Models in Medical Imaging</i>. International Conference on Medical Image Computing and Computer Assisted Intervention (MICCAI) 2025.
+
+*<sub><sup>Contributed equally</sub></sup>
+
+## Usage
+
+### Installations 
 
 1. **Install Miniconda/Conda**
 2. **Create a new Conda environment:**
@@ -14,7 +22,7 @@ Evaluating causal generative models with synthetic ground truth medical image co
    
    pip install -r requirements.txt
 
-## Data directory
+### Data directory
 
 The directory should have the following structure:
 
@@ -30,9 +38,16 @@ The directory should have the following structure:
 
   ```
 
-## Run
+### Run
 
 **After creating these directories, try running the following command to verify:**
 
 ```bash
 ./run.sh exp205
+```
+
+## Data
+The datasets used in this paper are available at [doi.org/10.5683/SP3/MQWWW5](https://doi.org/10.5683/SP3/MQWWW5).
+
+## Citation 
+
